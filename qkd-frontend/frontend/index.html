@@ -1,0 +1,170 @@
+<!-- frontend/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QKD BB84 Control Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #00ffe0;
+            font-family: 'Consolas', monospace;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+        .panel {
+            background: radial-gradient(circle at center, #222, #111);
+            border: 2px solid #00ffcc;
+            border-radius: 15px;
+            box-shadow: 0 0 20px #00ffcc;
+            padding: 20px;
+            margin: 20px;
+            width: 300px;
+            transition: transform 0.3s;
+        }
+        .panel:hover {
+            transform: scale(1.05);
+        }
+        button {
+            background-color: #00ffe0;
+            color: #0d0d0d;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 25px;
+            margin: 10px;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ffe0;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        button:hover {
+            background-color: #00ccaa;
+            box-shadow: 0 0 20px #00ccaa;
+        }
+        h1 {
+            font-size: 36px;
+            margin-top: 20px;
+            text-shadow: 0 0 10px #00ffe0;
+        }
+        h2 {
+            font-size: 24px;
+            text-shadow: 0 0 5px #00ffe0;
+        }
+        #results {
+            background: #111;
+            border: 2px solid #00ffcc;
+            margin: 30px;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 10px #00ffcc;
+        }
+    </style>
+    
+</head>
+<body>
+    <h1>QKD BB84 Protocol Control Center</h1>
+    <div class="container">
+        <div class="panel" id="alice">
+            <h2>🧠 Alice</h2>
+            <p id="aliceBits">Loading...</p>
+            <p id="alicePol">Polarization: </p>
+        </div>
+        <div class="panel" id="eve">
+            <h2>👁️ Eve</h2>
+            <p id="eveBits">Loading...</p>
+            <p id="evePol">Polarization: </p>
+        </div>
+        <div class="panel" id="bob">
+            <h2>🛰️ Bob</h2>
+            <p id="bobBits">Loading...</p>
+            <p id="bobBasis">Basis: </p>
+        </div>
+    </div>
+    
+
+    <div style="text-align:center; margin-top:20px;">
+        <button onclick="startPhase(1)">🛸 Start Phase 1</button>
+        <button onclick="startPhase(2)" disabled id="phase2Btn">🚀 Start Phase 2</button>
+        <button onclick="restart()">🔁 Restart</button>
+        <button onclick="analyze()">🔍 Analyze</button>
+    </div>
+    
+
+    <div id="results" style="text-align:center; margin-top:30px;"></div>
+
+<script>
+let currentIndex = 0;
+let alice_bits = "";
+let alice_bases = "";
+let eve_bases = "";
+let bob_bases = "";
+let num_bits = 8;
+
+async function loadConfig() {
+    let res = await axios.get('http://localhost:8000/config');
+    alice_bits = res.data.alice_bits;
+    alice_bases = res.data.alice_bases;
+    eve_bases = res.data.eve_bases;
+    bob_bases = res.data.bob_bases;
+    currentIndex = res.data.current_index;
+    document.getElementById("aliceBits").innerText = alice_bits.slice(0, currentIndex);
+}
+
+async function pollData() {
+    let res = await axios.get('http://localhost:8000/next-data');
+    if (res.data.done) return;
+    let data = res.data.data;
+    if (data) {
+        if (data.Name == "Eve") {
+            document.getElementById("eveBits").innerText += data.Bit;
+            document.getElementById("evePol").innerText = "Polarization: " + (data.Bit == "0" ? "H" : "V");
+        } else if (data.Name == "Bob") {
+            document.getElementById("bobBits").innerText += data.Bit;
+            document.getElementById("bobBasis").innerText = "Basis: " + (bob_bases[currentIndex-1] == "+" ? "H/V" : "D/A");
+            document.getElementById("aliceBits").innerText = alice_bits.slice(0, currentIndex);
+        }
+    }
+    setTimeout(pollData, 300);
+}
+
+async function restart() {
+    await axios.post('http://localhost:8000/restart');
+    document.getElementById("results").innerText = "";
+    location.reload();
+}
+
+async function analyze() {
+    let res = await axios.get('http://localhost:8000/analyze');
+    document.getElementById("results").innerHTML = `
+        <h3>Results</h3>
+        QBER: ${res.data.QBER}%<br>
+        Sifted Alice Bits: ${res.data.sifted_alice_bits}<br>
+        Sifted Bob Bits: ${res.data.sifted_bob_bits}<br>
+        Sifted Eve Bits: ${res.data.sifted_eve_bits}
+    `;
+}
+
+loadConfig().then(pollData);
+
+async function startPhase(phase) {
+    await axios.post(`http://localhost:8000/start-phase`, { phase: phase });
+    
+    if (phase === 1) {
+        document.getElementById("phase2Btn").disabled = false;
+    } else if (phase === 2) {
+        document.getElementById("phase2Btn").disabled = true;
+    }
+}
+
+</script>
+</body>
+</html>
