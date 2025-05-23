@@ -98,14 +98,13 @@ function App() {
         console.error("Error fetching data:", err);
       }
     
-      // setTimeout(() => setIsLive(false), 500); // ✅ cool down 500ms after each fetch
     
       if (!isCancelled) {
-        fetchLoop(); // 🔥 Immediately fetch again
+        fetchLoop();
       }
     }
   
-    fetchLoop(); // Start first fetch
+    fetchLoop();
   
     return () => {
       isCancelled = true; // Clean up if component unmounts
@@ -148,8 +147,8 @@ function App() {
           icon: 'error',
           title: 'Error',
           text: 'This phase has already been completed! Please restart or initiate the next phase.',
-          background: '#1a1a1a', // optional: matches your sci-fi theme
-          color: '#00ffe0',       // optional: neon text color
+          background: '#1a1a1a',
+          color: '#00ffe0',
           confirmButtonColor: '#00ffe0'
         });
         
@@ -187,11 +186,6 @@ function App() {
     handleBitInput(prev => Math.max(prev - 1, 0));
     setNumBitChange(true);
   }
-  
-  // function handleBitInput() {
-  //   console.log("Sending numBits:", inputNumBits);
-  //   setNumBitChange(true);
-  // }
   
 
   return (
